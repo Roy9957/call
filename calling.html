@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calling...</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --primary-color: #a259ff;
+      --danger-color: #ff3b30;
+      --bg-color: #121212;
+      --button-bg: #2c2c2e;
+      --text-color: white;
+      --subtext-color: #ccc;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .top {
+      margin-top: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+    }
+
+    .avatar {
+      width: 120px;
+      height: 120px;
+      background-color: var(--primary-color);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3em;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 20px rgba(162, 89, 255, 0.3);
+    }
+
+    .status {
+      font-size: 1.3em;
+      color: var(--subtext-color);
+      margin-bottom: 10px;
+      min-height: 24px;
+    }
+
+    .number {
+      font-size: 1.8em;
+      word-break: break-word;
+      padding: 0 20px;
+      margin-bottom: 10px;
+      font-weight: 300;
+    }
+
+    .call-time {
+      font-size: 1.1em;
+      color: var(--subtext-color);
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .options {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      padding: 25px 40px;
+      max-width: 400px;
+    }
+
+    .option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: var(--text-color);
+      font-size: 0.9em;
+      cursor: pointer;
+    }
+
+    .option i {
+      background-color: var(--button-bg);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      font-size: 1.3em;
+      transition: all 0.2s ease;
+    }
+
+    .option.active i {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .option:hover i {
+      transform: scale(1.1);
+    }
+
+    .end-call {
+      margin-bottom: 50px;
+    }
+
+    .end-call button {
+      background-color: var(--danger-color);
+      border: none;
+      color: white;
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      font-size: 1.8em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(255, 59, 48, 0.3);
+      transition: all 0.2s ease;
+    }
+
+    .end-call button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(255, 59, 48, 0.4);
+    }
+
+    .call-ended {
+      display: none;
+      font-size: 1.5em;
+      color: var(--subtext-color);
+      margin-top: 20px;
+    }
+
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.2);
+      transform: scale(0);
+      animation: ripple 0.6s linear;
+      pointer-events: none;
+    }
+
+    @keyframes ripple {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="avatar"><i class="fa-solid fa-user"></i></div>
+    <div class="status" id="status">Calling...</div>
+    <div class="number" id="callNumber">0000000000</div>
+    <div class="call-time" id="callTime">00:00</div>
+    <div class="call-ended" id="callEnded">Call ended</div>
+  </div>
+
+  <div class="options">
+    <div class="option" id="keypadOption">
+      <i class="fa-solid fa-keyboard"></i>
+      <span>Keypad</span>
+    </div>
+    <div class="option" id="muteOption">
+      <i class="fa-solid fa-microphone"></i>
+      <span>Mute</span>
+    </div>
+    <div class="option" id="speakerOption">
+      <i class="fa-solid fa-volume-high"></i>
+      <span>Speaker</span>
+    </div>
+    <div class="option" id="addContactOption">
+      <i class="fa-solid fa-user-plus"></i>
+      <span>Add</span>
+    </div>
+  </div>
+
+  <div class="end-call">
+    <button id="endCallBtn"><i class="fa-solid fa-phone-slash"></i></button>
+  </div>
+
+  <audio id="callingSound" loop>
+    <source src="ring.mp3" type="audio/mpeg">
+  </audio>
+  
+  <audio id="fakeCallSound">
+    <source src="call.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    // DOM elements
+    const callNumberElement = document.getElementById('callNumber');
+    const statusElement = document.getElementById('status');
+    const callTimeElement = document.getElementById('callTime');
+    const callEndedElement = document.getElementById('callEnded');
+    const endCallBtn = document.getElementById('endCallBtn');
+    const callingSound = document.getElementById('callingSound');
+    const fakeCallSound = document.getElementById('fakeCallSound');
+    
+    // Options
+    const muteOption = document.getElementById('muteOption');
+    const speakerOption = document.getElementById('speakerOption');
+    const keypadOption = document.getElementById('keypadOption');
+    const addContactOption = document.getElementById('addContactOption');
+    
+    // Get number from URL or localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const number = urlParams.get('number') || localStorage.getItem('lastCalledNumber') || 'Unknown';
+    callNumberElement.textContent = formatPhoneNumber(number);
+    
+    // Variables
+    let callConnected = false;
+    let callStartTime;
+    let callDurationInterval;
+    let isMuted = false;
+    let isSpeakerOn = false;
+    const isSpecialNumber = number.includes('9900');
+    let speechRecognition;
+    
+    // Initialize call after user interaction
+    document.body.addEventListener('click', initCall, { once: true });
+
+    function initCall() {
+      startCall();
+    }
+    
+    // Event listeners
+    endCallBtn.addEventListener('click', endCall);
+    muteOption.addEventListener('click', toggleMute);
+    speakerOption.addEventListener('click', toggleSpeaker);
+    keypadOption.addEventListener('click', showKeypad);
+    addContactOption.addEventListener('click', addToContacts);
+    
+    // Add ripple effect to buttons
+    [endCallBtn, muteOption, speakerOption, keypadOption, addContactOption].forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        const rect = this.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const ripple = document.createElement('span');
+        ripple.classList.add('ripple');
+        ripple.style.left = `${x}px`;
+        ripple.style.top = `${y}px`;
+        
+        this.appendChild(ripple);
+        
+        setTimeout(() => {
+          ripple.remove();
+        }, 600);
+      });
+    });
+    
+    // Functions
+    function startCall() {
+      if (isSpecialNumber) {
+        // For special number 9900
+        callingSound.play();
+        
+        // Start call timer immediately
+        callTimeElement.style.display = 'block';
+        startCallTimer();
+        
+        // Initialize speech recognition to detect "Hello"
+        initSpeechRecognition();
+        
+        // If no "Hello" after 15 seconds, end call
+        setTimeout(() => {
+          if (!callConnected) {
+            endCall(true);
+          }
+        }, 15000);
+      } else {
+        // For normal numbers
+        callingSound.play();
+        
+        // Simulate call being answered after random time
+        setTimeout(() => {
+          if (!callConnected) {
+            connectCall();
+          }
+        }, 3000 + Math.random() * 5000);
+      }
+    }
+    
+    function initSpeechRecognition() {
+      try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          speechRecognition = new SpeechRecognition();
+          speechRecognition.continuous = true;
+          speechRecognition.interimResults = false;
+          speechRecognition.lang = 'en-US';
+          
+          speechRecognition.onresult = (event) => {
+            const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+            if (transcript.includes('hello') && !callConnected) {
+              connectSpecialCall();
+            }
+          };
+          
+          speechRecognition.start();
+        }
+      } catch (e) {
+        console.error('Speech recognition not supported', e);
+        // Fallback - connect call after delay
+        setTimeout(() => {
+          if (!callConnected) {
+            connectSpecialCall();
+          }
+        }, 3000);
+      }
+    }
+    
+    function connectSpecialCall() {
+      callConnected = true;
+      callingSound.pause();
+      statusElement.textContent = '';
+      fakeCallSound.play();
+      
+      // When fake call ends
+      fakeCallSound.onended = () => {
+        endCall(true);
+      };
+    }
+    
+    function connectCall() {
+      callConnected = true;
+      callingSound.pause();
+      statusElement.textContent = '';
+      callTimeElement.style.display = 'block';
+      startCallTimer();
+      
+      // For normal calls, end after random time
+      setTimeout(() => {
+        endCall(true);
+      }, 10000 + Math.random() * 20000);
+    }
+    
+    function startCallTimer() {
+      callStartTime = new Date();
+      callDurationInterval = setInterval(updateCallTime, 1000);
+      updateCallTime();
+    }
+    
+    function updateCallTime() {
+      const now = new Date();
+      const seconds = Math.floor((now - callStartTime) / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      
+      callTimeElement.textContent = 
+        `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+    
+    function endCall(autoEnd = false) {
+      // Stop all sounds
+      callingSound.pause();
+      fakeCallSound.pause();
+      clearInterval(callDurationInterval);
+      
+      // Stop speech recognition if active
+      if (speechRecognition) {
+        speechRecognition.stop();
+      }
+      
+      if (autoEnd) {
+        // Show call ended message
+        statusElement.style.display = 'none';
+        callTimeElement.style.display = 'none';
+        callEndedElement.style.display = 'block';
+        
+        // Return to dialer after delay
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 1500);
+      } else {
+        // Immediate return if user ended call
+        window.location.href = 'index.html';
+      }
+    }
+    
+    function toggleMute() {
+      isMuted = !isMuted;
+      muteOption.classList.toggle('active', isMuted);
+      muteOption.querySelector('i').className = isMuted ? 
+        'fa-solid fa-microphone-slash' : 'fa-solid fa-microphone';
+    }
+    
+    function toggleSpeaker() {
+      isSpeakerOn = !isSpeakerOn;
+      speakerOption.classList.toggle('active', isSpeakerOn);
+    }
+    
+    function showKeypad() {
+      alert('Keypad would appear here in a real app');
+    }
+    
+    function addToContacts() {
+      alert(`Would add ${number} to contacts in a real app`);
+    }
+    
+    function formatPhoneNumber(number) {
+      // Simple formatting for display
+      if (number.length <= 10) return number;
+      return number.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+    }
+  </script>
+</body>
+</html>

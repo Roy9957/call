@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mobile Dialer</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    :root {
+      --primary-color: #30d158;
+      --secondary-color: #007aff;
+      --bg-color: #1c1c1e;
+      --keypad-bg: #2c2c2e;
+      --text-color: #ffffff;
+      --subtext-color: #bbbbbb;
+      --key-active: #3a3a3c;
+    }
+    
+    * {
+      box-sizing: border-box;
+      transition: all 0.1s ease;
+    }
+    
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+      padding: 20px;
+      overflow: hidden;
+    }
+    
+    .header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      margin-bottom: 20px;
+    }
+    
+    .time {
+      font-weight: 500;
+    }
+    
+    .status-icons {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    
+    #display {
+      font-size: 2.5em;
+      letter-spacing: 2px;
+      min-height: 60px;
+      padding: 10px 15px;
+      text-align: left;
+      flex: 1;
+      border-bottom: 1px solid #444;
+      font-weight: 300;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .backspace {
+      font-size: 1.2em;
+      color: var(--subtext-color);
+    
+      padding: 10px 15px;
+      opacity: 0.7;
+    }
+    
+    .backspace:active {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+    
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin: 30px 0;
+      width: 100%;
+      max-width: 350px;
+    }
+    
+    .key {
+      background-color: var(--keypad-bg);
+      border-radius: 50%;
+      aspect-ratio: 1/1;
+      font-size: 1.8em;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      
+      user-select: none;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .key:active {
+      background-color: var(--key-active);
+      transform: scale(0.95);
+    }
+    
+    .key span {
+      font-size: 0.5em;
+      color: var(--subtext-color);
+      margin-top: 5px;
+      font-weight: 300;
+    }
+    
+    .call-actions {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      margin-top: 20px;
+      gap: 30px;
+    }
+    
+    .call-btn {
+      width: 70px;
+      height: 70px;
+      background-color: var(--primary-color);
+      color: white;
+      font-size: 1.8em;
+      border: none;
+      border-radius: 50%;
+     
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 4px 15px rgba(48, 209, 88, 0.3);
+    }
+    
+    .call-btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 10px rgba(48, 209, 88, 0.3);
+    }
+    
+    .add-contact {
+      width: 70px;
+      height: 70px;
+      background-color: var(--secondary-color);
+      color: white;
+      font-size: 1.8em;
+      border: none;
+      border-radius: 50%;
+      
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .add-contact:active {
+      transform: scale(0.95);
+    }
+    
+    .recent-calls {
+      position: absolute;
+      bottom: -100%;
+      left: 0;
+      width: 100%;
+      background-color: var(--bg-color);
+      padding: 20px;
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.3);
+      transition: bottom 0.3s ease;
+    }
+    
+    .recent-calls.show {
+      bottom: 0;
+    }
+    
+    .recent-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .recent-title {
+      font-size: 1.2em;
+      font-weight: 500;
+    }
+    
+    .close-recent {
+      font-size: 1.5em;
+     
+    }
+    
+    .call-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #333;
+    }
+    
+    .call-item:last-child {
+      border-bottom: none;
+    }
+    
+    .call-icon {
+      margin-right: 15px;
+      color: var(--primary-color);
+    }
+    
+    .call-number {
+      flex: 1;
+    }
+    
+    .call-time {
+      color: var(--subtext-color);
+      font-size: 0.9em;
+    }
+    
+    .recent-btn {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: none;
+      border: none;
+      color: var(--subtext-color);
+      font-size: 0.9em;
+     
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .recent-btn i {
+      font-size: 1.2em;
+    }
+    
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.3);
+      transform: scale(0);
+      animation: ripple 0.6s linear;
+      pointer-events: none;
+    }
+    
+    @keyframes ripple {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+    
+    @media (max-height: 700px) {
+      .keypad {
+        margin: 15px 0;
+      }
+      
+      .key {
+        font-size: 1.5em;
+      }
+      
+      .call-actions {
+        margin-top: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="time" id="time">9:41</div>
+    <div class="status-icons">
+      <i class="fas fa-signal"></i>
+      <i class="fas fa-wifi"></i>
+      <i class="fas fa-battery-three-quarters"></i>
+    </div>
+  </div>
+  
+  <div class="top-bar">
+    <div id="display"></div>
+    <div class="backspace" onclick="backspace()">
+      <i class="fa-solid fa-delete-left"></i>
+    </div>
+  </div>
+
+  <div class="keypad">
+    <div class="key" onclick="add('1')">
+      <div>1</div>
+      <span>&nbsp;</span>
+    </div>
+    <div class="key" onclick="add('2')">
+      <div>2</div>
+      <span>ABC</span>
+    </div>
+    <div class="key" onclick="add('3')">
+      <div>3</div>
+      <span>DEF</span>
+    </div>
+    <div class="key" onclick="add('4')">
+      <div>4</div>
+      <span>GHI</span>
+    </div>
+    <div class="key" onclick="add('5')">
+      <div>5</div>
+      <span>JKL</span>
+    </div>
+    <div class="key" onclick="add('6')">
+      <div>6</div>
+      <span>MNO</span>
+    </div>
+    <div class="key" onclick="add('7')">
+      <div>7</div>
+      <span>PQRS</span>
+    </div>
+    <div class="key" onclick="add('8')">
+      <div>8</div>
+      <span>TUV</span>
+    </div>
+    <div class="key" onclick="add('9')">
+      <div>9</div>
+      <span>WXYZ</span>
+    </div>
+    <div class="key" onclick="add('*')">
+      <div>*</div>
+    </div>
+    <div class="key" onclick="add('0')">
+      <div>0</div>
+      <span>+</span>
+    </div>
+    <div class="key" onclick="add('#')">
+      <div>#</div>
+    </div>
+  </div>
+
+  <div class="call-actions">
+    
+    <button class="call-btn" onclick="call()">
+      <i class="fa-solid fa-phone"></i>
+    </button>
+  </div>
+  
+  <button class="recent-btn" onclick="toggleRecentCalls()">
+    <i class="fas fa-clock"></i> Recent
+  </button>
+  
+  <div class="recent-calls" id="recentCalls">
+    <div class="recent-header">
+      <div class="recent-title">Recent Calls</div>
+      <div class="close-recent" onclick="toggleRecentCalls()">
+        <i class="fas fa-times"></i>
+      </div>
+    </div>
+    <div id="callHistory"></div>
+  </div>
+
+  <script>
+    // DOM elements
+    const display = document.getElementById("display");
+    const recentCalls = document.getElementById("recentCalls");
+    const callHistory = document.getElementById("callHistory");
+    const timeElement = document.getElementById("time");
+    
+    // Initialize
+    updateTime();
+    setInterval(updateTime, 60000);
+    loadCallHistory();
+    
+    // Add ripple effect to keys
+    document.querySelectorAll('.key, .call-btn, .add-contact').forEach(button => {
+      button.addEventListener('click', function(e) {
+        const rect = this.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const ripple = document.createElement('span');
+        ripple.classList.add('ripple');
+        ripple.style.left = `${x}px`;
+        ripple.style.top = `${y}px`;
+        
+        this.appendChild(ripple);
+        
+        setTimeout(() => {
+          ripple.remove();
+        }, 600);
+      });
+    });
+    
+    // Functions
+    function add(char) {
+      display.textContent += char;
+    }
+    
+    function backspace() {
+      display.textContent = display.textContent.slice(0, -1);
+    }
+    
+    function call() {
+      const number = display.textContent.trim();
+      if (number) {
+        // Save to local storage
+        saveCall(number);
+        
+        // Redirect to calling page (you would create this page)
+        window.location.href = `calling.html?number=${encodeURIComponent(number)}`;
+      } else {
+        alert("Please enter a number");
+      }
+    }
+    
+    function addToContacts() {
+      const number = display.textContent.trim();
+      if (number) {
+        alert(`Would add ${number} to contacts in a real app`);
+        // In a real app, this would open a contact form with the number pre-filled
+      } else {
+        alert("Please enter a number first");
+      }
+    }
+    
+    function saveCall(number) {
+      // Get existing calls or initialize empty array
+      const calls = JSON.parse(localStorage.getItem('callHistory')) || [];
+      
+      // Add new call with timestamp
+      calls.unshift({
+        number: number,
+        time: new Date().toLocaleString()
+      });
+      
+      // Keep only the last 10 calls
+      if (calls.length > 10) {
+        calls.pop();
+      }
+      
+      // Save back to local storage
+      localStorage.setItem('callHistory', JSON.stringify(calls));
+      
+      // Update the UI
+      loadCallHistory();
+    }
+    
+    function loadCallHistory() {
+      const calls = JSON.parse(localStorage.getItem('callHistory')) || [];
+      
+      callHistory.innerHTML = '';
+      
+      if (calls.length === 0) {
+        callHistory.innerHTML = '<div style="text-align: center; color: var(--subtext-color); padding: 20px;">No recent calls</div>';
+        return;
+      }
+      
+      calls.forEach(call => {
+        const callItem = document.createElement('div');
+        callItem.className = 'call-item';
+        callItem.innerHTML = `
+          <div class="call-icon"><i class="fas fa-phone"></i></div>
+          <div class="call-number">${call.number}</div>
+          <div class="call-time">${call.time}</div>
+        `;
+        callItem.addEventListener('click', () => {
+          display.textContent = call.number;
+          toggleRecentCalls();
+        });
+        callHistory.appendChild(callItem);
+      });
+    }
+    
+    function toggleRecentCalls() {
+      recentCalls.classList.toggle('show');
+    }
+    
+    function updateTime() {
+      const now = new Date();
+      let hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      
+      hours = hours % 12;
+      hours = hours ? hours : 12; // Convert 0 to 12
+      
+      timeElement.textContent = `${hours}:${minutes} ${ampm}`;
+    }
+  </script>
+</body>
+</html>
