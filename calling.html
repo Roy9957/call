@@ -41,7 +41,6 @@
     .avatar {
       width: 120px;
       height: 120px;
-      background-color: var(--primary-color);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -87,7 +86,6 @@
       align-items: center;
       color: var(--text-color);
       font-size: 0.9em;
-      cursor: pointer;
     }
 
     .option i {
@@ -124,7 +122,6 @@
       height: 70px;
       border-radius: 50%;
       font-size: 1.8em;
-      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -163,7 +160,7 @@
 </head>
 <body>
   <div class="top">
-    <div class="avatar"><i class="fa-solid fa-user"></i></div>
+    <div class="avatar" id="avatar"><i class="fa-solid fa-user"></i></div>
     <div class="status" id="status">Calling...</div>
     <div class="number" id="callNumber">0000000000</div>
     <div class="call-time" id="callTime">00:00</div>
@@ -198,6 +195,10 @@
   </audio>
   
   <audio id="fakeCallSound">
+    <source src="audio1.mp3" type="audio/mpeg">
+  </audio>
+
+  <audio id="voiceCallSound">
     <source src="call.mp3" type="audio/mpeg">
   </audio>
 
@@ -210,6 +211,8 @@
     const endCallBtn = document.getElementById('endCallBtn');
     const callingSound = document.getElementById('callingSound');
     const fakeCallSound = document.getElementById('fakeCallSound');
+    const voiceCallSound = document.getElementById('voiceCallSound');
+    const avatarElement = document.getElementById('avatar');
     
     // Options
     const muteOption = document.getElementById('muteOption');
@@ -222,26 +225,30 @@
     const number = urlParams.get('number') || localStorage.getItem('lastCalledNumber') || 'Unknown';
     callNumberElement.textContent = formatPhoneNumber(number);
     
+    // Set avatar color based on number
+    const avatarColors = [
+      '#a259ff', '#ff6b6b', '#4ecdc4', '#45b7d1', 
+      '#96ce79', '#ffcc5c', '#ff8c94', '#6b7280'
+    ];
+    const colorIndex = number.split('').reduce((sum, char) => sum + (char.charCodeAt(0) || 0), 0) % avatarColors.length;
+    avatarElement.style.backgroundColor = avatarColors[colorIndex];
+    avatarElement.style.boxShadow = `0 4px 20px ${avatarColors[colorIndex]}80`;
+    
     // Variables
     let callConnected = false;
     let callStartTime;
     let callDurationInterval;
     let isMuted = false;
     let isSpeakerOn = false;
-    const isSpecialNumber = number.includes('9900');
     let speechRecognition;
-    
-    // Initialize call after user interaction
-    document.body.addEventListener('click', initCall, { once: true });
-
-    function initCall() {
-      startCall();
-    }
+    let endCallTimeout;
+    const isSpecialNumber = number === '01725241089';
+    const isVoiceNumber = number === '9900';
     
     // Event listeners
     endCallBtn.addEventListener('click', endCall);
     muteOption.addEventListener('click', toggleMute);
-    speakerOption.addEventListener('click', toggleSpeaker);
+    speakerOption.addEventListener('click', handleSpeaker);
     keypadOption.addEventListener('click', showKeypad);
     addContactOption.addEventListener('click', addToContacts);
     
@@ -266,34 +273,33 @@
     });
     
     // Functions
-    function startCall() {
-      if (isSpecialNumber) {
-        // For special number 9900
+    function handleSpeaker() {
+      isSpeakerOn = !isSpeakerOn;
+      speakerOption.classList.toggle('active', isSpeakerOn);
+      
+      if (isSpeakerOn && !callConnected) {
         callingSound.play();
-        
-        // Start call timer immediately
-        callTimeElement.style.display = 'block';
-        startCallTimer();
-        
-        // Initialize speech recognition to detect "Hello"
-        initSpeechRecognition();
-        
-        // If no "Hello" after 15 seconds, end call
+        const ringDuration = (isSpecialNumber || isVoiceNumber) ? 3000 : 3000 + Math.random() * 5000;
         setTimeout(() => {
           if (!callConnected) {
-            endCall(true);
+            if (isSpecialNumber) {
+              connectSpecialCall();
+            } else if (isVoiceNumber) {
+              initSpeechRecognition();
+            } else {
+              connectCall();
+            }
           }
-        }, 15000);
-      } else {
-        // For normal numbers
-        callingSound.play();
+        }, ringDuration);
         
-        // Simulate call being answered after random time
-        setTimeout(() => {
-          if (!callConnected) {
-            connectCall();
-          }
-        }, 3000 + Math.random() * 5000);
+        // For 9900, set timeout to end call if no "hello" detected
+        if (isVoiceNumber) {
+          endCallTimeout = setTimeout(() => {
+            if (!callConnected) {
+              endCall(true);
+            }
+          }, 3000 + Math.random() * 5000);
+        }
       }
     }
     
@@ -306,21 +312,52 @@
           speechRecognition.interimResults = false;
           speechRecognition.lang = 'en-US';
           
+          // Handle permission granting
+          speechRecognition.onstart = () => {
+            // Ensure call doesn't end when permission is granted
+            statusElement.textContent = 'Calling..';
+          };
+          
           speechRecognition.onresult = (event) => {
             const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
             if (transcript.includes('hello') && !callConnected) {
-              connectSpecialCall();
+              clearTimeout(endCallTimeout); // Cancel the end call timeout
+              connectVoiceCall();
             }
           };
           
+          speechRecognition.onerror = (event) => {
+            console.error('Speech recognition error', event.error);
+            // Don't end call on permission errors, allow fallback
+            if (event.error === 'no-speech' || event.error === 'aborted') {
+              return;
+            }
+            // Fallback if other errors occur
+            setTimeout(() => {
+              if (!callConnected) {
+                clearTimeout(endCallTimeout);
+                connectVoiceCall();
+              }
+            }, 3000);
+          };
+          
           speechRecognition.start();
+        } else {
+          // Fallback if speech recognition not supported
+          setTimeout(() => {
+            if (!callConnected) {
+              clearTimeout(endCallTimeout);
+              connectVoiceCall();
+            }
+          }, 3000);
         }
       } catch (e) {
         console.error('Speech recognition not supported', e);
-        // Fallback - connect call after delay
+        // Fallback
         setTimeout(() => {
           if (!callConnected) {
-            connectSpecialCall();
+            clearTimeout(endCallTimeout);
+            connectVoiceCall();
           }
         }, 3000);
       }
@@ -330,10 +367,29 @@
       callConnected = true;
       callingSound.pause();
       statusElement.textContent = '';
+      callTimeElement.style.display = 'block';
+      startCallTimer();
       fakeCallSound.play();
       
-      // When fake call ends
+      // When audio1.mp3 ends
       fakeCallSound.onended = () => {
+        endCall(true);
+      };
+    }
+    
+    function connectVoiceCall() {
+      callConnected = true;
+      callingSound.pause();
+      if (speechRecognition) {
+        speechRecognition.stop();
+      }
+      statusElement.textContent = '';
+      callTimeElement.style.display = 'block';
+      startCallTimer();
+      voiceCallSound.play();
+      
+      // When call.mp3 ends
+      voiceCallSound.onended = () => {
         endCall(true);
       };
     }
@@ -368,28 +424,24 @@
     }
     
     function endCall(autoEnd = false) {
-      // Stop all sounds
       callingSound.pause();
       fakeCallSound.pause();
+      voiceCallSound.pause();
       clearInterval(callDurationInterval);
-      
-      // Stop speech recognition if active
       if (speechRecognition) {
         speechRecognition.stop();
       }
+      clearTimeout(endCallTimeout);
       
       if (autoEnd) {
-        // Show call ended message
         statusElement.style.display = 'none';
         callTimeElement.style.display = 'none';
         callEndedElement.style.display = 'block';
         
-        // Return to dialer after delay
         setTimeout(() => {
           window.location.href = 'index.html';
         }, 1500);
       } else {
-        // Immediate return if user ended call
         window.location.href = 'index.html';
       }
     }
@@ -401,11 +453,6 @@
         'fa-solid fa-microphone-slash' : 'fa-solid fa-microphone';
     }
     
-    function toggleSpeaker() {
-      isSpeakerOn = !isSpeakerOn;
-      speakerOption.classList.toggle('active', isSpeakerOn);
-    }
-    
     function showKeypad() {
       alert('Keypad would appear here in a real app');
     }
@@ -415,7 +462,6 @@
     }
     
     function formatPhoneNumber(number) {
-      // Simple formatting for display
       if (number.length <= 10) return number;
       return number.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
     }
